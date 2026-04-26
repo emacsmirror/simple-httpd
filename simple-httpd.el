@@ -817,16 +817,13 @@ Extra headers can be sent by supplying them like keywords, i.e.
                      ("Date" . ,(httpd-date-string))
                      ("Connection" . "keep-alive")
                      ("Content-Type" . ,(httpd--stringify mime))
-                     ("Content-Length" . ,(httpd--buffer-size)))))
+                     ("Content-Length" . ,(httpd--buffer-size))
+                     ,@(cl-loop for (header value) on header-keys by #'cddr
+                                collect (cons (httpd--stringify header) value)))))
       (with-temp-buffer
         (insert (format "HTTP/1.1 %d %s\r\n" status status-str))
-        (cl-loop for (header value) on header-keys by #'cddr
-                 for header-name = (substring (symbol-name header) 1)
-                 for value-name = (format "%s" value)
-                 collect (cons header-name value-name) into extras
-                 finally (setf headers (nconc headers extras)))
-        (dolist (header headers)
-          (insert (format "%s: %s\r\n" (car header) (cdr header))))
+        (cl-loop for (header . value) in headers do
+                 (insert (format "%s: %s\r\n" header value)))
         (insert "\r\n")
         (process-send-region (httpd-resolve-proc proc)
                              (point-min) (point-max)))
