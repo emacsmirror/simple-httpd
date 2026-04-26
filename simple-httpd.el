@@ -330,9 +330,9 @@
 
 ;;;###autoload
 (defun httpd-start ()
-  "Start the web server process.  If the server is already
-running, this will restart the server.  There is only one server
-instance per Emacs instance."
+  "Start the web server process.
+If the server is already running, this will restart the server.  There
+is only one server instance per Emacs instance."
   (interactive)
   (httpd-stop)
   (httpd-log `(start ,(current-time-string)))
@@ -487,11 +487,11 @@ emacs -Q -batch -l simple-httpd.elc -f httpd-batch-start"
   (if (eq t proc) httpd-current-proc proc))
 
 (defmacro with-httpd-buffer (proc mime &rest body)
-  "Create a temporary buffer, set it as the current buffer, and,
-at the end of body, automatically serve it to an HTTP client with
-an HTTP header indicating the specified MIME type.  Additionally,
-`standard-output' is set to this output buffer and
-`httpd-current-proc' is set to PROC."
+  "Create temporary buffer and serve it to the client.
+Create a temporary buffer, set it as the current buffer, and, at the end
+of body, automatically serve it to an HTTP client with an HTTP header
+indicating the specified MIME type.  Additionally, `standard-output' is
+set to this output buffer and `httpd-current-proc' is set to PROC."
   (declare (indent defun))
   (let ((proc-sym (make-symbol "--proc--")))
     `(let ((,proc-sym ,proc))
@@ -510,9 +510,9 @@ Returns a process for future response."
   httpd-current-proc)
 
 (defmacro defservlet (name mime path-query-request &rest body)
-  "Defines a simple httpd servlet.  The servlet runs in a
-temporary buffer which is automatically served to the client
-along with a header.
+  "Defines a simple httpd servlet.
+The servlet runs in a temporary buffer which is automatically served to
+the client along with a header.
 
 A servlet that serves the contents of *scratch*,
 
@@ -554,9 +554,9 @@ A servlet that says hello,
   "Anaphoric variable for `defservlet*'.")
 
 (defmacro defservlet* (endpoint mime args &rest body)
-  "Like `defservlet', but automatically bind variables/arguments
-to the request.  Trailing components of the ENDPOINT can be bound
-by prefixing these components with a colon, acting like a template.
+  "Like `defservlet', but automatically bind variables/arguments to the request.
+Trailing components of the ENDPOINT can be bound by prefixing these
+components with a colon, acting like a template.
 
     (defservlet* packages/:package/:version text/plain (verbose)
       (insert (format \"%s\\n%s\\n\" package version))
@@ -769,9 +769,9 @@ element is the fragment."
 ;; Data sending functions
 
 (defun httpd-send-header (proc mime status &rest header-keys)
-  "Send an HTTP header with given MIME type and STATUS, followed
-by the current buffer.  If PROC is T use the `httpd-current-proc'
-as the process.
+  "Send an HTTP header followed by the current buffer.
+MIME is the mime type and STATUS the HTTP status code.  If PROC is T use
+the `httpd-current-proc' as the process.
 
 Extra headers can be sent by supplying them like keywords, i.e.
 
@@ -800,16 +800,16 @@ Extra headers can be sent by supplying them like keywords, i.e.
                            (point-min) (point-max)))))
 
 (defun httpd-redirect (proc path &optional code)
-  "Redirect the client to PATH (default 301).  If PROC is T use
-the `httpd-current-proc' as the process."
+  "Redirect the client to PATH (default 301).
+If PROC is T use the `httpd-current-proc' as the process."
   (httpd-log (list 'redirect path))
   (httpd-discard-buffer)
   (with-temp-buffer
     (httpd-send-header proc "text/plain" (or code 301) :Location path)))
 
 (defun httpd-send-file (proc path &optional req)
-  "Serve file to the given client.  If PROC is T use the
-`httpd-current-proc' as the process."
+  "Serve file to the given client.
+If PROC is T use the `httpd-current-proc' as the process."
   (httpd-discard-buffer)
   (let ((req-etag (cadr (assoc "If-None-Match" req)))
         (etag (httpd-etag path))
@@ -826,8 +826,8 @@ the `httpd-current-proc' as the process."
                            200 :Last-Modified mtime :ETag etag)))))
 
 (defun httpd-send-directory (proc path uri-path)
-  "Serve a file listing to the client.  If PROC is T use the
-`httpd-current-proc' as the process."
+  "Serve a file listing to the client.
+If PROC is T use the `httpd-current-proc' as the process."
   (httpd-discard-buffer)
   (let ((title (concat "Directory listing for "
                        (url-insert-entities-in-string uri-path))))
@@ -860,8 +860,8 @@ the `httpd-current-proc' as the process."
     size))
 
 (defun httpd-error (proc status &optional info)
-  "Send an error page appropriate for STATUS to the client,
-optionally inserting object INFO into page.  If PROC is T use the
+  "Send an error page appropriate for STATUS to the client.
+The INFO object is optionally inserted into page.  If PROC is T use the
 `httpd-current-proc' as the process."
   (httpd-discard-buffer)
   (httpd-log `(error ,status ,info))
