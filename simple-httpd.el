@@ -138,6 +138,7 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'subr-x))
 (require 'cl-lib)
 (require 'pp)
 (require 'url-util)
@@ -560,7 +561,7 @@ A servlet that says hello,
            else collect item into path
            finally
            (cl-return
-            (cl-values (intern (mapconcat #'identity path "/")) vars))))
+            (cl-values (intern (string-join path "/")) vars))))
 
 (defvar httpd-path nil
   "Anaphoric variable for `defservlet*'.")
@@ -693,8 +694,9 @@ if it failed to parse a complete HTTP header."
 (defun httpd-unhex (str)
   "Fully decode the URL encoding in STR (including +'s)."
   (when str
-    (let ((nonplussed (replace-regexp-in-string (regexp-quote "+") " " str)))
-      (decode-coding-string (url-unhex-string nonplussed t) 'utf-8))))
+    (decode-coding-string
+     (url-unhex-string (string-replace "+" " " str) t)
+     'utf-8)))
 
 (defun httpd-parse-args (argstr)
   "Parse ARGSTR containing URL encoded arguments."
@@ -708,8 +710,8 @@ if it failed to parse a complete HTTP header."
 The first element of the return value is the script path, the
 second element is an alist of variable/value pairs, and the third
 element is the fragment."
-  (let ((p1 (string-match (regexp-quote "?") uri))
-        (p2 (string-match (regexp-quote "#") uri))
+  (let ((p1 (string-search "?" uri))
+        (p2 (string-search "#" uri))
         retval)
     (push (if p2 (httpd-unhex (substring uri (1+ p2)))) retval)
     (push (if p1 (httpd-parse-args (substring uri (1+ p1) p2))) retval)
@@ -718,7 +720,7 @@ element is the fragment."
 (defun httpd-escape-html-buffer ()
   "Escape current buffer contents to be safe for inserting into HTML."
   (goto-char (point-min))
-  (while (search-forward-regexp "[<>&]" nil t)
+  (while (re-search-forward "[<>&]" nil t)
     (replace-match
      (cl-case (aref (match-string 0) 0)
        (?< "&lt;")
@@ -746,7 +748,7 @@ element is the fragment."
   "Clean dangerous .. from PATH and remove the leading slash."
   (let* ((sep (if (member system-type '(windows-nt ms-dos)) "[/\\]" "/"))
          (split (delete ".." (split-string path sep)))
-         (unsplit (mapconcat #'identity (delete "" split) "/")))
+         (unsplit (string-join (delete "" split) "/")))
     (concat "./" unsplit)))
 
 (defun httpd-gen-path (path &optional root)
@@ -765,7 +767,7 @@ ROOT defaults to `httpd-root'."
   (if (not httpd-servlets)
       'httpd/
     (cl-labels ((cat (x)
-                  (concat "httpd/" (mapconcat #'identity (reverse x) "/"))))
+                  (concat "httpd/" (string-join (reverse x) "/"))))
       (let ((parts (cdr (split-string (directory-file-name uri-path) "/"))))
         (or
          (cl-find-if #'fboundp (mapcar #'intern-soft
