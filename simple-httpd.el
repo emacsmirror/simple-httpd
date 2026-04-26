@@ -158,7 +158,7 @@
 
 (defcustom httpd-port 8080
   "Web server port."
-  :type 'integer)
+  :type 'natnum)
 
 (defcustom httpd-root "~/public_html"
   "Web server file root."
