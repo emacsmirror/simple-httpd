@@ -484,7 +484,7 @@ MESSAGE describes the state change."
   "Pretty print ITEM to the log."
   (with-current-buffer (get-buffer-create "*httpd*")
     (setf buffer-read-only nil)
-    (let ((follow (= (point) (point-max))))
+    (let ((follow (eobp)))
       (save-excursion
         (goto-char (point-max))
         (pp item (current-buffer)))
