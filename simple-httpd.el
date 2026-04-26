@@ -864,7 +864,7 @@ the `httpd-current-proc' as the process."
   (httpd-discard-buffer)
   (let ((title (concat "Directory listing for "
                        (url-insert-entities-in-string uri-path))))
-    (if (equal "/" (substring uri-path -1))
+    (if (string-suffix-p "/" uri-path)
         (with-temp-buffer
           (httpd-log `(directory ,path))
           (insert "<!DOCTYPE html>\n")
