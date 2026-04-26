@@ -12,32 +12,32 @@
 
 ;;; Commentary:
 
-;; Use `httpd-start' to start the web server. Files are served from
+;; Use `httpd-start' to start the web server.  Files are served from
 ;; `httpd-root' on port `httpd-port' using `httpd-ip-family' at host
-;; `httpd-host'. While the root can be changed at any time, the server
+;; `httpd-host'.  While the root can be changed at any time, the server
 ;; needs to be restarted in order for a port change to take effect.
 
 ;; Everything is performed by servlets, including serving
-;; files. Servlets are enabled by setting `httpd-servlets' to true
-;; (default). Servlets are four-parameter functions that begin with
+;; files.  Servlets are enabled by setting `httpd-servlets' to true
+;; (default).  Servlets are four-parameter functions that begin with
 ;; "httpd/" where the trailing component specifies the initial path on
-;; the server. For example, the function `httpd/hello-world' will be
+;; the server.  For example, the function `httpd/hello-world' will be
 ;; called for the request "/hello-world" and "/hello-world/foo".
 
 ;; The default servlet `httpd/' is the one that serves files from
 ;; `httpd-root' and can be turned off through redefinition or setting
-;; `httpd-serve-files' to nil. It is used even when `httpd-servlets'
+;; `httpd-serve-files' to nil.  It is used even when `httpd-servlets'
 ;; is nil.
 
 ;; The four parameters for a servlet are process, URI path, GET/POST
 ;; arguments (alist), and the full request object (header
-;; alist). These are ordered by general importance so that some can be
-;; ignored. Two macros are provided to help with writing servlets.
+;; alist).  These are ordered by general importance so that some can be
+;; ignored.  Two macros are provided to help with writing servlets.
 
 ;;  * `with-httpd-buffer' -- Creates a temporary buffer that is
 ;;    automatically served to the client at the end of the body.
 ;;    Additionally, `standard-output' is set to this output
-;;    buffer. For example, this servlet says hello,
+;;    buffer.  For example, this servlet says hello,
 
 ;;     (defun httpd/hello-world (proc path &rest args)
 ;;       (with-httpd-buffer proc "text/plain"
@@ -46,18 +46,18 @@
 ;; This servlet be viewed at http://localhost:8080/hello-world/Emacs
 
 ;; * `defservlet' -- Similar to the above macro but totally hides the
-;;   process object from the servlet itself. The above servlet can be
+;;   process object from the servlet itself.  The above servlet can be
 ;;   re-written identically like so,
 
 ;;     (defservlet hello-world text/plain (path)
 ;;       (insert "hello, " (file-name-nondirectory path)))
 
-;; Note that `defservlet' automatically sets `httpd-current-proc'. See
+;; Note that `defservlet' automatically sets `httpd-current-proc'.  See
 ;; below.
 
 ;; The "function parameters" part can be left empty or contain up to
 ;; three parameters corresponding to the final three servlet
-;; parameters. For example, a servlet that shows *scratch* and doesn't
+;; parameters.  For example, a servlet that shows *scratch* and doesn't
 ;; need parameters,
 
 ;;     (defservlet scratch text/plain ()
@@ -65,8 +65,8 @@
 
 ;; A higher level macro `defservlet*' wraps this lower-level
 ;; `defservlet' macro, automatically binding variables to components
-;; of the request. For example, this binds parts of the request path
-;; and one query parameter. Request components not provided by the
+;; of the request.  For example, this binds parts of the request path
+;; and one query parameter.  Request components not provided by the
 ;; client are bound to nil.
 
 ;;     (defservlet* packages/:package/:version text/plain (verbose)
@@ -89,11 +89,11 @@
 ;;   * `httpd-log'         -- log an object to *httpd*
 
 ;; Some of these functions require a process object, which isn't
-;; passed to `defservlet' servlets. Use t in place of the process
+;; passed to `defservlet' servlets.  Use t in place of the process
 ;; argument to use `httpd-current-proc' (like `standard-output').
 
 ;; If you just need to serve static from some location under some
-;; route on the server, use `httpd-def-file-servlet'. It expands into
+;; route on the server, use `httpd-def-file-servlet'.  It expands into
 ;; a `defservlet' that serves files.
 
 ;;; History:
@@ -330,8 +330,8 @@
 
 ;;;###autoload
 (defun httpd-start ()
-  "Start the web server process. If the server is already
-running, this will restart the server. There is only one server
+  "Start the web server process.  If the server is already
+running, this will restart the server.  There is only one server
 instance per Emacs instance."
   (interactive)
   (httpd-stop)
@@ -375,7 +375,7 @@ instance per Emacs instance."
 
 (defun httpd-batch-start ()
   "Never returns, holding the server open indefinitely for batch mode.
-Logs are redirected to stdout. To use, invoke Emacs like this:
+Logs are redirected to stdout.  To use, invoke Emacs like this:
 emacs -Q -batch -l simple-httpd.elc -f httpd-batch-start"
   (if (not noninteractive)
       (error "Only use `httpd-batch-start' in batch mode!")
@@ -483,13 +483,13 @@ emacs -Q -batch -l simple-httpd.elc -f httpd-batch-start"
   "Buffer-local variable indicating if the header has been sent.")
 
 (defun httpd-resolve-proc (proc)
-  "Return the correct process to use. This handles `httpd-current-proc'."
+  "Return the correct process to use.  This handles `httpd-current-proc'."
   (if (eq t proc) httpd-current-proc proc))
 
 (defmacro with-httpd-buffer (proc mime &rest body)
   "Create a temporary buffer, set it as the current buffer, and,
 at the end of body, automatically serve it to an HTTP client with
-an HTTP header indicating the specified MIME type. Additionally,
+an HTTP header indicating the specified MIME type.  Additionally,
 `standard-output' is set to this output buffer and
 `httpd-current-proc' is set to PROC."
   (declare (indent defun))
@@ -510,7 +510,7 @@ Returns a process for future response."
   httpd-current-proc)
 
 (defmacro defservlet (name mime path-query-request &rest body)
-  "Defines a simple httpd servelet. The servlet runs in a
+  "Defines a simple httpd servlet.  The servlet runs in a
 temporary buffer which is automatically served to the client
 along with a header.
 
@@ -555,7 +555,7 @@ A servlet that says hello,
 
 (defmacro defservlet* (endpoint mime args &rest body)
   "Like `defservlet', but automatically bind variables/arguments
-to the request. Trailing components of the ENDPOINT can be bound
+to the request.  Trailing components of the ENDPOINT can be bound
 by prefixing these components with a colon, acting like a template.
 
     (defservlet* packages/:package/:version text/plain (verbose)
@@ -569,8 +569,8 @@ When accessed from this URL,
     http://example.com/packages/foobar/1.0?verbose=1
 
 the variables package, version, and verbose will be bound to the
-associated components of the URL. Components not provided are
-bound to nil. The query arguments can use the Common Lisp &key
+associated components of the URL.  Components not provided are
+bound to nil.  The query arguments can use the Common Lisp &key
 form (variable default provided-p).
 
     (defservlet* greeting/:name text/plain ((greeting \"hi\" greeting-p))
@@ -646,7 +646,7 @@ actually serve up files."
 
 (defun httpd-parse ()
   "Parse HTTP header in current buffer into association list.
-Leaves the point at the start of the request content. Returns nil
+Leaves the point at the start of the request content.  Returns nil
 if it failed to parse a complete HTTP header."
   (goto-char (point-min))
   (when (looking-at "\\([^ ]+\\) +\\([^ ]+\\) +\\([^\r]+\\)\r\n")
@@ -770,7 +770,7 @@ element is the fragment."
 
 (defun httpd-send-header (proc mime status &rest header-keys)
   "Send an HTTP header with given MIME type and STATUS, followed
-by the current buffer. If PROC is T use the `httpd-current-proc'
+by the current buffer.  If PROC is T use the `httpd-current-proc'
 as the process.
 
 Extra headers can be sent by supplying them like keywords, i.e.
@@ -800,7 +800,7 @@ Extra headers can be sent by supplying them like keywords, i.e.
                            (point-min) (point-max)))))
 
 (defun httpd-redirect (proc path &optional code)
-  "Redirect the client to PATH (default 301). If PROC is T use
+  "Redirect the client to PATH (default 301).  If PROC is T use
 the `httpd-current-proc' as the process."
   (httpd-log (list 'redirect path))
   (httpd-discard-buffer)
@@ -826,7 +826,7 @@ the `httpd-current-proc' as the process."
                            200 :Last-Modified mtime :ETag etag)))))
 
 (defun httpd-send-directory (proc path uri-path)
-  "Serve a file listing to the client. If PROC is T use the
+  "Serve a file listing to the client.  If PROC is T use the
 `httpd-current-proc' as the process."
   (httpd-discard-buffer)
   (let ((title (concat "Directory listing for "
@@ -861,7 +861,7 @@ the `httpd-current-proc' as the process."
 
 (defun httpd-error (proc status &optional info)
   "Send an error page appropriate for STATUS to the client,
-optionally inserting object INFO into page. If PROC is T use the
+optionally inserting object INFO into page.  If PROC is T use the
 `httpd-current-proc' as the process."
   (httpd-discard-buffer)
   (httpd-log `(error ,status ,info))
