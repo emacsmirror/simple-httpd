@@ -1,4 +1,4 @@
-;;; simple-httpd-test.el --- simple-httpd unit tests
+;;; simple-httpd-test.el --- simple-httpd unit tests -*- lexical-binding: t -*-
 
 ;;; Commentary:
 

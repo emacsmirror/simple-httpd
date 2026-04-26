@@ -1,4 +1,4 @@
-;;; simple-httpd.el --- pure elisp HTTP server
+;;; simple-httpd.el --- Pure Elisp HTTP server -*- lexical-binding: t -*-
 
 ;; This is free and unencumbered software released into the public domain.
 
