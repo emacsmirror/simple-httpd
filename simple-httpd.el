@@ -8,7 +8,7 @@
 ;; URL: https://github.com/skeeto/emacs-http-server
 ;; Version: 1.5.1
 ;; Package-Requires: ((emacs "27.1"))
-;; Keywords: network
+;; Keywords: network, comm
 
 ;;; Commentary:
 
