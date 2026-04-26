@@ -192,6 +192,7 @@
   "String to use in the Server header.")
 
 (defvar httpd-mime-types
+  ;; IDEA: parse /etc/mime.types and use here as well
   '(("png"  . "image/png")
     ("gif"  . "image/gif")
     ("jpg"  . "image/jpeg")
