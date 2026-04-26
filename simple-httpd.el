@@ -473,7 +473,7 @@ PROC is the client process and CHUNK is part of the request as string."
   (with-current-buffer (generate-new-buffer " *httpd-client*")
     (process-put proc :request-buffer (current-buffer)))
   (set-process-sentinel proc #'httpd--sentinel)
-  (httpd-log (list 'connection (car (process-contact proc)))))
+  (httpd-log `(connection ,(car (process-contact proc)))))
 
 (defun httpd--sentinel (proc message)
   "Runs when a client PROC closes the connection.
@@ -843,7 +843,7 @@ Extra headers can be sent by supplying them like keywords, i.e.
 (defun httpd-redirect (proc path &optional code)
   "Redirect the client to PATH (default 301).
 If PROC is t use the `httpd-current-proc' as the process."
-  (httpd-log (list 'redirect path))
+  (httpd-log `(redirect ,path))
   (httpd-discard-buffer)
   (with-temp-buffer
     (httpd-send-header proc "text/plain" (or code 301) :Location path)))
