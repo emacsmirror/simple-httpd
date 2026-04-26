@@ -537,7 +537,7 @@ A servlet that says hello,
   (declare (indent defun))
   (let ((proc-sym (make-symbol "proc"))
         (fname (intern (concat "httpd/" (symbol-name name)))))
-    `(defun ,fname (,proc-sym ,@path-query-request &rest ,(cl-gensym))
+    `(defun ,fname (,proc-sym ,@path-query-request &rest ,(gensym))
        (with-httpd-buffer ,proc-sym ,(httpd--stringify mime)
          ,@body))))
 
@@ -591,9 +591,9 @@ The original path, query, and request can be accessed by the
 anaphoric special variables `httpd-path', `httpd-query', and
 `httpd-request'."
   (declare (indent defun))
-  (let ((path-lexical (cl-gensym))
-        (query-lexical (cl-gensym))
-        (request-lexical (cl-gensym)))
+  (let ((path-lexical (gensym))
+        (query-lexical (gensym))
+        (request-lexical (gensym)))
     (cl-multiple-value-bind (path vars) (httpd-parse-endpoint endpoint)
       `(defservlet ,path ,mime (,path-lexical ,query-lexical ,request-lexical)
          (let ((httpd-path ,path-lexical)
