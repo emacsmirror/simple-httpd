@@ -828,16 +828,15 @@ Extra headers can be sent by supplying them like keywords, i.e.
                     ("Date" . ,(httpd-date-string))
                     ("Connection" . "keep-alive")
                     ("Content-Type" . ,mime-str)
-                    ("Content-Length" . ,(httpd--buffer-size))
-                    ,@(cl-loop for (header value) on header-keys by #'cddr
-                               collect (cons (httpd--stringify header) value)))))
-    (with-temp-buffer
-      (insert (format "HTTP/1.1 %d %s\r\n" status status-str))
-      (cl-loop for (header . value) in headers do
-               (insert (format "%s: %s\r\n" header value)))
-      (insert "\r\n")
-      (process-send-region (httpd-resolve-proc proc)
-                           (point-min) (point-max)))
+                    ("Content-Length" . ,(httpd--buffer-size))))
+         (header-list `(,(format "HTTP/1.1 %d %s\r\n" status status-str)
+                        ,@(cl-loop for (header . value) in headers collect
+                                   (format "%s: %s\r\n" header value))
+                        ,@(cl-loop for (header value) on header-keys by #'cddr collect
+                                   (format "%s: %s\r\n" (httpd--stringify header) value))
+                        "\r\n")))
+    (process-send-string (httpd-resolve-proc proc)
+                         (apply #'concat header-list))
     (process-send-region (httpd-resolve-proc proc)
                          (point-min) (point-max))))
 

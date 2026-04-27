@@ -77,7 +77,10 @@
       (httpd--flet ((process-send-region (_proc _start _end)
                       (let ((send-buffer (current-buffer)))
                         (with-current-buffer buffer
-                          (insert-buffer-substring send-buffer)))))
+                          (insert-buffer-substring send-buffer))))
+                    (process-send-string (_proc str)
+                      (with-current-buffer buffer
+                        (insert str))))
         (httpd-send-header nil "text/html" 404 :Foo "bar")))
     (let ((out (httpd-parse)))
       (should (equal (cadar out) "404"))
