@@ -3,8 +3,7 @@
 ;; This is free and unencumbered software released into the public domain.
 
 ;; Author: Christopher Wellons <wellons@nullprogram.com>
-;; Maintainers: Philip Kaludercic <philipk@posteo.net>,
-;;              Daniel Mendler <mail@daniel-mendler.de>
+;; Maintainer: Philip Kaludercic <philipk@posteo.net>, Daniel Mendler <mail@daniel-mendler.de>
 ;; URL: https://github.com/skeeto/emacs-http-server
 ;; Version: 1.5.1
 ;; Package-Requires: ((emacs "26.1") (compat "30"))
