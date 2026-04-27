@@ -359,7 +359,7 @@ is only one server instance per Emacs instance."
          :family   httpd-ip-family
          :filter   #'httpd--filter
          :coding   'binary
-         :log      #'httpd--log))
+         :log      #'httpd--accept))
   (run-hooks 'httpd-start-hook))
 
 ;;;###autoload
@@ -466,7 +466,7 @@ PROC is the client process and CHUNK is part of the request as string."
               (when (httpd--connection-close-p request)
                 (process-send-eof proc)))))))))
 
-(defun httpd--log (_server proc _message)
+(defun httpd--accept (_server proc _message)
   "Runs each time a new client PROC connects to the server."
   (push proc httpd--clients)
   (with-current-buffer (generate-new-buffer " *httpd-client*")
