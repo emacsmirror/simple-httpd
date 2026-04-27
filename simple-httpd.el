@@ -854,18 +854,19 @@ REQ is the request.  If PROC is t use the `httpd-current-proc' as the
 process."
   (httpd-discard-buffer)
   (let ((req-etag (cadr (assoc "If-None-Match" req)))
-        (etag (httpd-etag path))
-        (mtime (httpd-date-string (nth 4 (file-attributes path)))))
+        (etag (httpd-etag path)))
     (if (equal req-etag etag)
         (with-temp-buffer
           (httpd-log `(file ,path not-modified))
           (httpd-send-header proc "text/plain" 304))
-      (httpd-log `(file ,path))
-      (with-temp-buffer
-        (set-buffer-multibyte nil)
-        (insert-file-contents-literally path)
-        (httpd-send-header proc (httpd-get-mime (file-name-extension path))
-                           200 :Last-Modified mtime :ETag etag)))))
+      (let ((mime (httpd-get-mime (file-name-extension path)))
+            (mtime (httpd-date-string (nth 4 (file-attributes path)))))
+        (httpd-log `(file ,path))
+        (with-temp-buffer
+          (set-buffer-multibyte nil)
+          (insert-file-contents-literally path)
+          (httpd-send-header proc mime 200
+                             :ETag etag :Last-Modified mtime))))))
 
 (defun httpd-send-directory (proc path uri-path)
   "Serve a file listing to the client.
