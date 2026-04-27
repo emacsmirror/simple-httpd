@@ -773,7 +773,7 @@ ROOT defaults to `httpd-root'."
       (let ((parts (cdr (split-string (directory-file-name uri-path) "/"))))
         (or
          (cl-find-if #'fboundp (mapcar #'intern-soft
-                                      (cl-maplist #'cat (reverse parts))))
+                                       (cl-maplist #'cat (reverse parts))))
          'httpd/)))))
 
 (defun httpd-serve-root (proc root uri-path &optional request)
