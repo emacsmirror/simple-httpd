@@ -401,11 +401,11 @@ If DIRECTORY is nil use the current `default-directory'."
   "Never returns, holding the server open indefinitely for batch mode.
 Logs are redirected to stdout.  To use, invoke Emacs like this:
   \"emacs -Q -batch -l simple-httpd.elc -f httpd-batch-start\""
-  (if (not noninteractive)
-      (error "Only use `httpd-batch-start' in batch mode!")
-    (httpd-start)
-    (defalias 'httpd-log 'pp)
-    (while t (sleep-for 60))))
+  (unless noninteractive
+    (error "Only use `httpd-batch-start' in batch mode"))
+  (httpd-start)
+  (fset #'httpd-log #'pp)
+  (while t (sleep-for 60)))
 
 ;; Utility
 
