@@ -85,7 +85,7 @@
 ;;   * `httpd-redirect'    -- redirect the browser to another url
 ;;   * `httpd-send-header' -- send custom headers
 ;;   * `httpd-error'       -- report an error to the client
-;;   * `httpd-log'         -- log an object to *httpd*
+;;   * `httpd-log'         -- log an object to the `httpd-log-buffer'
 
 ;; Some of these functions require a process object, which isn't
 ;; passed to `defservlet' servlets.  Use t in place of the process
@@ -174,6 +174,11 @@
 (defcustom httpd-servlets t
   "Enable servlets."
   :type 'boolean)
+
+(defcustom httpd-log-buffer "*httpd*"
+  "Buffer for log messages.
+Set to nil to disable logging."
+  :type '(choice (const nil) string))
 
 (defcustom httpd-show-backtrace-when-error nil
   "If true, show backtrace on error page."
@@ -492,16 +497,17 @@ MESSAGE describes the state change."
 
 (defun httpd-log (item)
   "Pretty print ITEM to the log."
-  (with-current-buffer (get-buffer-create "*httpd*")
-    (setf buffer-read-only nil)
-    (let ((follow (eobp)))
-      (save-excursion
-        (goto-char (point-max))
-        (pp item (current-buffer)))
-      (if follow (goto-char (point-max))))
-    (setf truncate-lines t
-          buffer-read-only t)
-    (set-buffer-modified-p nil)))
+  (when httpd-log-buffer
+    (with-current-buffer (get-buffer-create httpd-log-buffer)
+      (setf buffer-read-only nil)
+      (let ((follow (eobp)))
+        (save-excursion
+          (goto-char (point-max))
+          (pp item (current-buffer)))
+        (if follow (goto-char (point-max))))
+      (setf truncate-lines t
+            buffer-read-only t)
+      (set-buffer-modified-p nil))))
 
 ;; Servlets
 
@@ -943,7 +949,7 @@ The INFO object is optionally inserted into page.  If PROC is t use the
     (httpd-send-header proc "text/html" status)))
 
 (defun httpd--error-safe (&rest args)
-  "Call `httpd-error' with ARGS and log failures to *httpd*."
+  "Call `httpd-error' with ARGS and log failures to `httpd-log-buffer'."
   (condition-case error-case
       (apply #'httpd-error args)
     (error (httpd-log `(hard-error ,error-case)))))
