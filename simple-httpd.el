@@ -906,13 +906,11 @@ the `httpd-current-proc' as the process."
 
 (defun httpd--buffer-size (&optional buffer)
   "Get the BUFFER size in bytes."
-  (let ((orig enable-multibyte-characters)
-        (size 0))
+  (let ((orig enable-multibyte-characters))
     (with-current-buffer (or buffer (current-buffer))
       (set-buffer-multibyte nil)
-      (setf size (buffer-size))
-      (if orig (set-buffer-multibyte orig)))
-    size))
+      (prog1 (buffer-size)
+        (when orig (set-buffer-multibyte orig))))))
 
 (defun httpd-error (proc status &optional info)
   "Send an error page appropriate for STATUS to the client.
