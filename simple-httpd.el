@@ -511,6 +511,23 @@ MESSAGE describes the state change."
 Return `httpd-current-proc' if PROC is t."
   (if (eq t proc) httpd-current-proc proc))
 
+(defmacro httpd--ensure-buffer (&rest body)
+  "Ensure that BODY is executed in a temporary httpd buffer.
+Reuse the current buffer if it is a temporary httpd buffer."
+  (declare (indent 0) (debug t))
+  (cl-with-gensyms (temp)
+    `(let (,temp)
+       (with-current-buffer
+           (if (eq major-mode 'httpd-buffer)
+               (current-buffer)
+             (setq ,temp (generate-new-buffer " *httpd-temp*" t)))
+         (unwind-protect
+             (progn
+               (setq major-mode 'httpd-buffer)
+               ,@body)
+           (when (buffer-live-p ,temp)
+             (kill-buffer ,temp)))))))
+
 (defmacro with-httpd-buffer (proc mime &rest body)
   "Create temporary buffer and serve it to the client.
 Create a temporary buffer, set it as the current buffer, and, at the end
@@ -519,8 +536,7 @@ indicating the specified MIME type.  Additionally, `standard-output' is
 set to this output buffer and `httpd-current-proc' is set to PROC."
   (declare (indent defun))
   (cl-once-only (proc)
-    `(with-temp-buffer
-       (setf major-mode 'httpd-buffer)
+    `(httpd--ensure-buffer
        (let ((standard-output (current-buffer))
              (httpd-current-proc ,proc))
          ,@body)
@@ -844,16 +860,14 @@ Extra headers can be sent by supplying them like keywords, i.e.
   "Redirect the client to PATH (default 301).
 If PROC is t use the `httpd-current-proc' as the process."
   (httpd-log `(redirect ,path))
-  (httpd-discard-buffer)
-  (with-temp-buffer
+  (httpd--ensure-buffer
     (httpd-send-header proc "text/plain" (or code 301) :Location path)))
 
 (defun httpd-send-file (proc path &optional req)
   "Serve file at PATH to the given client PROC.
 REQ is the request.  If PROC is t use the `httpd-current-proc' as the
 process."
-  (httpd-discard-buffer)
-  (with-temp-buffer
+  (httpd--ensure-buffer
     (let ((etag (httpd-etag path)))
       (if (not (equal (cadr (assoc "If-None-Match" req)) etag))
           (let ((mime (httpd-get-mime (file-name-extension path)))
@@ -871,11 +885,10 @@ process."
 PROC is the client process, PATH the directory PATH, URI-PATH the
 request path and REQUEST the request header as alist.  If PROC is t use
 the `httpd-current-proc' as the process."
-  (httpd-discard-buffer)
   (if (string-suffix-p "/" uri-path)
       (let ((title (concat "Directory listing for "
                            (url-insert-entities-in-string uri-path))))
-        (with-temp-buffer
+        (httpd--ensure-buffer
           (httpd-log `(directory ,path))
           (insert "<!DOCTYPE html>\n"
                   "<html>\n<head><title>" title "</title></head>\n"
@@ -906,9 +919,8 @@ the `httpd-current-proc' as the process."
   "Send an error page appropriate for STATUS to the client.
 The INFO object is optionally inserted into page.  If PROC is t use the
 `httpd-current-proc' as the process."
-  (httpd-discard-buffer)
   (httpd-log `(error ,status ,info))
-  (with-temp-buffer
+  (httpd--ensure-buffer
     (let ((html (alist-get status httpd-html ""))
           (contents
            (if (not info)
