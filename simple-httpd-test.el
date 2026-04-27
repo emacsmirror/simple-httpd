@@ -54,7 +54,7 @@
             "Host: localhost:8080\r\n"
             "DNT: 1, 2\r\n\r\n")
     (let ((p (httpd-parse)))
-      (should (equal (cl-cadar p) "/f%20b"))
+      (should (equal (cadar p) "/f%20b"))
       (should (equal (cadr (assoc "Host" p)) "localhost:8080"))
       (should (equal (cadr (assoc "Dnt" p)) "1, 2")))))
 
@@ -63,7 +63,7 @@
   (let* ((url "/foo/bar%20baz.html?q=test%26case&v=10#page10")
          (p (httpd-parse-uri url))
          (args (cadr p))
-         (fragment (cl-caddr p)))
+         (fragment (caddr p)))
     (should (equal (car p) "/foo/bar%20baz.html"))
     (should (equal (cadr (assoc "v" args)) "10"))
     (should (equal (cadr (assoc "q" args)) "test&case"))
@@ -80,7 +80,7 @@
                           (insert-buffer-substring send-buffer)))))
         (httpd-send-header nil "text/html" 404 :Foo "bar")))
     (let ((out (httpd-parse)))
-      (should (equal (cl-cadar out) "404"))
+      (should (equal (cadar out) "404"))
       (should (equal (cadr (assoc "Content-Type" out)) "text/html; charset=utf-8"))
       (should (equal (cadr (assoc "Foo" out)) "bar")))))
 
