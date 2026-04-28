@@ -460,10 +460,11 @@ PROC is the client process and CHUNK is part of the request as string."
               (process-put proc :request nil)
               (setf request (nreverse (cons (list "Content" content)
                                             (nreverse request))))
-              (httpd-log `(request (date ,(httpd-date-string))
-                                   (address ,(car (process-contact proc)))
-                                   (get ,uri-path)
-                                   ,(cons 'headers request)))
+              (httpd-log `(request
+                           (date ,(httpd-date-string))
+                           (address ,(car (process-contact proc)))
+                           (get ,uri-path)
+                           (headers . ,request)))
               (if (null servlet)
                   (httpd--error-safe proc 404)
                 (condition-case error-case
