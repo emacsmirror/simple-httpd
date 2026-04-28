@@ -492,19 +492,29 @@ MESSAGE describes the state change."
 
 ;; Logging
 
-(defun httpd-log (item)
+(defun httpd--log (item)
   "Pretty print ITEM to the log."
-  (when httpd-log-buffer
-    (with-current-buffer (get-buffer-create httpd-log-buffer)
-      (setq buffer-read-only nil)
-      (let ((follow (eobp)))
+  (with-current-buffer (get-buffer-create httpd-log-buffer)
+    (setq buffer-read-only t
+          truncate-lines t)
+    (with-silent-modifications
+      (let* ((win (get-buffer-window))
+             (follow (and win (= (window-point win) (point-max)))))
         (save-excursion
           (goto-char (point-max))
           (pp item (current-buffer)))
-        (if follow (goto-char (point-max))))
-      (setq truncate-lines t
-            buffer-read-only t)
-      (set-buffer-modified-p nil))))
+        (when follow
+          (set-window-point win (point-max)))))))
+
+(defun httpd-log (item)
+  "Pretty print ITEM to the log.
+If `httpd-log-buffer' is nil, ITEM may not be evaluated."
+  (declare (compiler-macro
+            (lambda (_)
+              `(when httpd-log-buffer
+                 (httpd--log ,item)))))
+  (when httpd-log-buffer
+    (httpd--log item)))
 
 ;; Servlets
 
