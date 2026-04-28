@@ -145,7 +145,11 @@
 
 (defgroup simple-httpd nil
   "A simple web server."
-  :group 'comm)
+  :link '(url-link :tag "Website" "https://github.com/skeeto/emacs-http-server")
+  :link '(emacs-library-link :tag "Library Source" "simple-httpd.el")
+  :group 'network
+  :group 'comm
+  :prefix "httpd-")
 
 (defcustom httpd-ip-family 'ipv4
   "Web server IP family used by `make-network-process'."
