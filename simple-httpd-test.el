@@ -60,14 +60,10 @@
 
 (ert-deftest httpd-parse-uri-test ()
   "Test URI parsing."
-  (let* ((url "/foo/bar%20baz.html?q=test%26case&v=10#page10")
-         (p (httpd-parse-uri url))
-         (args (cadr p))
-         (fragment (caddr p)))
-    (should (equal (car p) "/foo/bar%20baz.html"))
-    (should (equal (cadr (assoc "v" args)) "10"))
-    (should (equal (cadr (assoc "q" args)) "test&case"))
-    (should (equal fragment "page10"))))
+  (should (equal (httpd-parse-uri "foo?k=v#fragment") '("foo" (("k" "v")) "fragment")))
+  (should (equal (httpd-parse-uri "foo#fragment?k=v") '("foo" nil "fragment?k=v")))
+  (should (equal (httpd-parse-uri "/foo/bar%20baz.html?q=test%26case&v=10#page10")
+                 '("/foo/bar%20baz.html" (("q" "test&case") ("v" "10")) "page10"))))
 
 (ert-deftest httpd-send-header-test ()
   "Test server header output."
