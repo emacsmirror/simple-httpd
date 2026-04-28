@@ -610,7 +610,7 @@ A servlet that says hello,
   "Dynamic variable bound by `httpd-servlet*'.")
 
 (defmacro httpd-servlet* (endpoint mime args &rest body)
-  "Like `httpd-servlet', but automatically bind variables/arguments to the request.
+  "Like `httpd-servlet', but bind variables/arguments to the request.
 
 ENDPOINT is the path as symbol.
 MIME the mime-type as symbol.
