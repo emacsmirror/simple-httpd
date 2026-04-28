@@ -319,15 +319,15 @@ Set to nil to disable logging."
 
 (defvar httpd-html
   '((404 . "<!DOCTYPE html>
-<html><head><title>%n %t</title></head><body>
-<h1>%n %t</h1>
+<html><head><title>%2%s %3$s</title></head><body>
+<h1>%2%s %3$s</h1>
 <p>The requested URL was not found on this server.</p>
-<pre>%s</pre></body></html>")
+<pre>%1$s</pre></body></html>")
     (t . "<!DOCTYPE html>
 <html><head><title>%n %t</title></head><body>
-<h1>%n %t</h1>
+<h1>%2$s %3$s</h1>
 <p>An error occurred.</p>
-<pre>%s</pre>
+<pre>%1$s</pre>
 </body></html>"))
   "HTML for various errors.")
 
@@ -936,12 +936,11 @@ The INFO object is optionally inserted into page.  If PROC is t use the
                    (httpd-escape-html-buffer)
                    (buffer-string)))
              "")))
-      (insert (format-spec
+      (insert (format
                (or (alist-get status httpd-html)
                    (alist-get t httpd-html))
-               `((?s . ,contents)
-                 (?n . ,status)
-                 (?t . ,(alist-get status httpd-status-codes))))))
+               contents status
+               (alist-get status httpd-status-codes))))
     (httpd-send-header proc "text/html" status)))
 
 (defun httpd--error-safe (&rest args)
