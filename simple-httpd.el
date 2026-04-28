@@ -727,12 +727,11 @@ if it failed to parse a complete HTTP header."
 The first element of the return value is the script path, the
 second element is an alist of variable/value pairs, and the third
 element is the fragment."
-  (let ((p1 (string-search "?" uri))
-        (p2 (string-search "#" uri))
-        retval)
-    (push (if p2 (httpd-unhex (substring uri (1+ p2)))) retval)
-    (push (if p1 (httpd-parse-args (substring uri (1+ p1) p2))) retval)
-    (push (substring uri 0 (or p1 p2)) retval)))
+  (let ((p (string-search "?" uri))
+        (q (string-search "#" uri)))
+    (list (substring uri 0 (or p q))
+          (and p (httpd-parse-args (substring uri (1+ p) q)))
+          (and q (httpd-unhex (substring uri (1+ q)))))))
 
 (defconst httpd--html-entities
   '((?& . "&amp;")
