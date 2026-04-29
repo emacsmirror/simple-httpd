@@ -483,8 +483,8 @@ PROC is the client process and CHUNK is part of the request as string."
           (condition-case err
               (when-let* ((content (or (httpd--request-content request)
                                        (setq continue nil))))
-                (process-put proc :request nil)
                 (httpd--handle-request proc request content)
+                (process-put proc :request nil)
                 (when (httpd--connection-close-p request)
                   (process-send-eof proc)
                   (setq continue nil)))
@@ -896,7 +896,8 @@ Extra headers can be sent by supplying them like keywords, i.e.
                         "\r\n"))
          (proc (httpd--resolve-proc proc)))
     (process-send-string proc (apply #'concat header-list))
-    (unless (= (point-min) (point-max))
+    (unless (or (= (point-min) (point-max))
+                (equal "HEAD" (caar (process-get proc :request))))
       (process-send-region proc (point-min) (point-max)))))
 
 (defun httpd-redirect (proc path &optional code)
