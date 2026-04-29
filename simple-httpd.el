@@ -319,8 +319,8 @@ Set to nil to disable logging."
 
 (defvar httpd-html
   '((404 . "<!DOCTYPE html>
-<html><head><title>%2%s %3$s</title></head><body>
-<h1>%2%s %3$s</h1>
+<html><head><title>%2$s %3$s</title></head><body>
+<h1>%2$s %3$s</h1>
 <p>The requested URL was not found on this server.</p>
 <pre>%1$s</pre></body></html>")
     (t . "<!DOCTYPE html>
