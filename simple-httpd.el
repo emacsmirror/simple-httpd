@@ -456,7 +456,6 @@ PROC is the client process."
 (defun httpd--request-content (request)
   "Return content of REQUEST as string if it is fully transmitted.
 Return nil if transmission is incomplete."
-  ;; "Transfer-Encoding: chunked" is not supported.
   (if-let* ((len (cadr (assoc "Content-Length" request))))
       (when (>= (buffer-size) (setq len (string-to-number len)))
         ;; IDEA: Avoid allocating content string here. The servlet could
@@ -474,23 +473,25 @@ PROC is the client process and CHUNK is part of the request as string."
     (insert chunk)
     (let ((continue t) (request nil))
       (while continue
-        (setq request (process-get proc :request))
+        (setq continue nil
+              request (process-get proc :request))
         (when (and (not request) (setq request (httpd-parse)))
           (process-put proc :request request)
           (delete-region (point-min) (point)))
-        (if (not request)
-            (setq continue nil)
-          (condition-case err
-              (when-let* ((content (or (httpd--request-content request)
-                                       (setq continue nil))))
+        (condition-case err
+            (cond
+             ((not request))
+             ((when-let* ((te (cadr (assoc "Transfer-Encoding" request))))
+                (not (string-equal-ignore-case te "identity")))
+              (httpd--error-safe proc 400 "Unsupported transfer encoding"))
+             ((when-let* ((content (httpd--request-content request)))
                 (httpd--handle-request proc request content)
                 (process-put proc :request nil)
-                (when (httpd--connection-close-p request)
-                  (process-send-eof proc)
-                  (setq continue nil)))
-            (error
-             (httpd--error-safe proc 500 err)
-             (setq continue nil))))))))
+                (if (httpd--connection-close-p request)
+                    (process-send-eof proc)
+                  (setq continue t)))))
+          (error
+           (httpd--error-safe proc 500 err)))))))
 
 (defsubst httpd--new-buffer (name)
   "Generate new buffer NAME without calling buffer hooks."
