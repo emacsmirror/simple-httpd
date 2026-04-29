@@ -161,9 +161,6 @@ Set to nil to disable logging."
   :type 'string)
 
 (defvar httpd-mime-types
-  ;; IDEA: parse /etc/mime.types and use here as well. Alternatively use
-  ;; mailcap-mime-extensions, which are already taken from /etc/mime.types.
-  ;; However the definitions in mailcap lack the charset=utf-8 suffix.
   '(("png"  . "image/png")
     ("gif"  . "image/gif")
     ("jpg"  . "image/jpeg")
@@ -210,8 +207,6 @@ Set to nil to disable logging."
   "File served by default when accessing a directory.")
 
 (defvar httpd-status-codes
-  ;; IDEA: Reuse url-http-codes from url-http. However url-http-codes does not
-  ;; use standard strings for some reason, e.g., "100 Continue with request".
   '((100 . "Continue")
     (101 . "Switching Protocols")
     (102 . "Processing")
@@ -386,41 +381,45 @@ Logs are redirected to stdout.  To use, invoke Emacs like this:
     (or (and (stringp conn) (string-equal-ignore-case conn "close"))
         (equal "HTTP/1.0" (caddar request)))))
 
-(defun httpd--parse-content-args (request content)
-  "Parse arguments in CONTENT string.
-REQUEST is the request header alist."
+(defun httpd--parse-content-args (request)
+  "Parse arguments in content string of REQUEST."
   (when-let* ((content-type (cadr (assoc "Content-Type" request)))
               ((string-prefix-p "application/x-www-form-urlencoded"
                                 content-type)))
-    (httpd-parse-args content)))
+    (httpd-parse-args (cadr (assoc "Content" request)))))
 
-(defun httpd--handle-request (proc request content)
-  "Handle REQUEST with CONTENT string.
-PROC is the client process."
-  (let* ((uri (cadar request))
-         (parsed-uri (httpd-parse-uri (concat uri)))
-         (uri-path (httpd-unhex (car parsed-uri)))
-         (uri-query (nconc (cadr parsed-uri)
-                           (httpd--parse-content-args request content)))
-         (servlet (httpd-get-servlet uri-path)))
-    (nconc request `(("Content" ,content)))
-    (httpd-log `(request
-                 (date ,(httpd-date-string))
-                 (address ,(car (process-contact proc)))
-                 (path ,uri-path)
-                 (query ,uri-query)
-                 (servlet ,servlet)
-                 (headers . ,request)))
-    (funcall servlet proc uri-path uri-query request)))
+(defun httpd--handle-request (proc request)
+  "Handle REQUEST from client PROC."
+  (condition-case err
+      (if (fixnump request)
+          (progn
+            (process-put proc :request-active '(("GET" "/" "HTTP/1.1")
+                                                ("Connection" "close")))
+            (httpd-error proc request)
+            (delete-process proc))
+        (let* ((uri (cadar request))
+               (parsed-uri (httpd-parse-uri (concat uri)))
+               (uri-path (httpd-unhex (car parsed-uri)))
+               (uri-query (nconc (cadr parsed-uri)
+                                 (httpd--parse-content-args request)))
+               (servlet (httpd-get-servlet uri-path)))
+          (httpd-log `(request
+                       (date ,(httpd-date-string))
+                       (address ,(car (process-contact proc)))
+                       (path ,uri-path)
+                       (query ,uri-query)
+                       (servlet ,servlet)
+                       (headers . ,request)))
+          (process-put proc :request-active request)
+          (funcall servlet proc uri-path uri-query request)))
+    (error
+     (httpd--error-safe proc 500 err))))
 
 (defun httpd--content-string (len)
   "Return request content of length LEN if it is fully transmitted.
 Return nil if transmission is incomplete."
   (if (> len 0)
       (when (>= (buffer-size) len)
-        ;; IDEA: Avoid allocating content string here. The servlet could
-        ;; access the :request-buffer itself, however the buffer can already
-        ;; contain a part of the next request.
         (prog1 (buffer-substring (point-min) (setq len (+ (point-min) len)))
           (delete-region (point-min) len)))
     ""))
@@ -444,25 +443,26 @@ PROC is the client process and CHUNK is part of the request as string."
         (setq continue nil
               request (process-get proc :request-pending))
         (when (and (not request) (setq request (httpd-parse)))
-          (process-put proc :request-queue
-                       (nconc (process-get proc :request-queue)
-                              (list request)))
           (process-put proc :request-pending request)
           (delete-region (point-min) (point)))
         (cond
          (request
           (if-let* ((len (httpd--content-length request)))
-              (condition-case err
-                  (when-let* ((content (httpd--content-string len)))
-                    (process-put proc :request-pending nil)
-                    (httpd--handle-request proc request content)
-                    (setq continue (not (process-get proc :closed))))
-                (error
-                 (httpd--error-safe proc 500 err)))
-            (httpd--error-safe proc 411)))
+              (when-let* ((content (httpd--content-string len)))
+                (process-put proc :request-pending nil)
+                (httpd--push-request proc (nconc request `(("Content" ,content))))
+                (setq continue t))
+            (httpd--push-request proc 411)))
          ((looking-at-p "[^\r\n]*[\r\n]")
-          (process-put proc :request-queue '((("GET" "/bad" "HTTP/1.1"))))
-          (httpd--error-safe proc 400)))))))
+          (httpd--push-request proc 400))))))
+  (when-let* (((not (process-get proc :request-active)))
+              (request (pop (process-get proc :request-queue))))
+    (httpd--handle-request proc request)))
+
+(defun httpd--push-request (proc request)
+  "Push REQUEST to PROC queue."
+  (cl-callf (lambda (q) (nconc q (list request)))
+      (process-get proc :request-queue)))
 
 (defsubst httpd--new-buffer (name)
   "Generate new buffer NAME without calling buffer hooks."
@@ -563,7 +563,7 @@ Returns a process for future response.
 
     (httpd-servlet slow text/plain ()
       (let ((proc (httpd-discard-buffer)))
-        (run-with-timer 1 0
+        (run-at-time 1 0
          (lambda ()
            (httpd-with-buffer proc \"text/plain\"
              (insert \"Slow response\"))))))"
@@ -850,16 +850,12 @@ Extra headers can be sent by supplying them like keywords, i.e.
     (error "Header already sent"))
   (setq httpd--header-sent t)
   (let* ((proc (httpd--resolve-proc proc))
-         (request (or (pop (process-get proc :request-queue))
-                      (error "Request queue is empty")))
+         (request (or (process-get proc :request-active)
+                      (error "No active request")))
          (status-str (alist-get status httpd-status-codes))
          (mime-str (httpd--stringify mime))
          (mime-str (if (and (string-prefix-p "text/" mime-str)
                             (not (string-search "charset=" mime-str)))
-                       ;; IDEA: Either guess the charset from the buffer or
-                       ;; introduce a defcustom httpd-charset. At least we
-                       ;; hard-code utf-8 only once here and not multiple
-                       ;; times as before.
                        (concat mime-str "; charset=utf-8")
                      mime-str))
          (close (httpd--connection-close-p request))
@@ -874,13 +870,14 @@ Extra headers can be sent by supplying them like keywords, i.e.
                         ,@(cl-loop for (header value) on header-keys by #'cddr collect
                                    (format "%s: %s\r\n" (httpd--stringify header) value))
                         "\r\n")))
+    (process-put proc :request-active nil)
     (process-send-string proc (apply #'concat header-list))
     (unless (or (= (point-min) (point-max)) (equal "HEAD" (caar request)))
       (process-send-region proc (point-min) (point-max)))
-    (process-put proc :request nil)
-    (when close
-      (process-put proc :closed t)
-      (process-send-eof proc))))
+    (if close
+        (process-send-eof proc)
+      (when-let* ((request (pop (process-get proc :request-queue))))
+        (run-at-time 0 nil #'httpd--handle-request proc request)))))
 
 (defun httpd-redirect (proc path &optional code)
   "Redirect the client to PATH (default 301).
@@ -968,13 +965,10 @@ The INFO object is optionally inserted into page.  If PROC is t use the
                (alist-get status httpd-status-codes))))
     (httpd-send-header proc "text/html" status)))
 
-(defun httpd--error-safe (proc status &optional info)
-  "Call `httpd-error' with PROC, STATUS and INFO.
-Close connection to PROC and ensure that failures are logged."
+(defun httpd--error-safe (&rest args)
+  "Call `httpd-error' with ARGS and log failures."
   (condition-case err
-      (progn
-        (httpd-error proc status info)
-        (process-send-eof proc))
+      (apply #'httpd-error args)
     (error (httpd-log `(hard-error ,err)))))
 
 ;; Old names. Not deprecated to avoid churn.

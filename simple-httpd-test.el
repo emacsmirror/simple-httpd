@@ -70,7 +70,7 @@
     (let ((out (current-buffer)))
       (with-temp-buffer
         (set-buffer-multibyte nil)
-        (httpd--flet ((process-get (_proc _prop) (list request))
+        (httpd--flet ((process-get (_proc _prop) request)
                       (process-put (_proc _prop _val))
                       (process-send-eof (_proc))
                       (process-send-region (_proc start end)
