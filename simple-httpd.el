@@ -422,8 +422,8 @@ Logs are redirected to stdout.  To use, invoke Emacs like this:
 
 (defun httpd--connection-close-p (request)
   "Return non-nil if the REQUEST has \"connection: close\"."
-  (or (equal '("close") (cdr (assoc "Connection" request)))
-      (equal '("HTTP/1.0") (cddr (assoc "GET" request)))))
+  (or (equal "close" (cadr (assoc "Connection" request)))
+      (equal "HTTP/1.0" (caddar request))))
 
 (defun httpd--filter (proc chunk)
   "Process called each time client makes a request.
