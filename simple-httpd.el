@@ -324,7 +324,7 @@ Set to nil to disable logging."
 <p>The requested URL was not found on this server.</p>
 <pre>%1$s</pre></body></html>")
     (t . "<!DOCTYPE html>
-<html><head><title>%n %t</title></head><body>
+<html><head><title>%2$s %3$s</title></head><body>
 <h1>%2$s %3$s</h1>
 <p>An error occurred.</p>
 <pre>%1$s</pre>
