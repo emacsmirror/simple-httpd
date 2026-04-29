@@ -439,8 +439,8 @@ REQUEST is the request header alist."
 PROC is the client process."
   (let* ((uri (cadar request))
          (parsed-uri (httpd-parse-uri (concat uri)))
-         (uri-path (httpd-unhex (nth 0 parsed-uri)))
-         (uri-query (nconc (nth 1 parsed-uri)
+         (uri-path (httpd-unhex (car parsed-uri)))
+         (uri-query (nconc (cadr parsed-uri)
                            (httpd--parse-content-args request content)))
          (servlet (httpd-get-servlet uri-path)))
     (nconc request `(("Content" ,content)))
@@ -614,11 +614,11 @@ A servlet that says hello,
     (httpd-servlet hello-world text/plain (path)
       (insert \"hello, \" (file-name-nondirectory path))))"
   (declare (indent defun))
-  (let ((proc-sym (make-symbol "proc"))
-        (fname (intern (concat "httpd/" (symbol-name name)))))
-    `(defun ,fname (,proc-sym ,@path-query-request &rest ,(gensym))
-       (httpd-with-buffer ,proc-sym ,(httpd--stringify mime)
-         ,@body))))
+  (cl-with-gensyms (proc-sym rest-sym)
+    (let ((fname (intern (concat "httpd/" (symbol-name name)))))
+      `(defun ,fname (,proc-sym ,@path-query-request &rest ,rest-sym)
+         (httpd-with-buffer ,proc-sym ,(httpd--stringify mime)
+           ,@body)))))
 
 (defun httpd-parse-endpoint (symbol)
   "Parse an endpoint template SYMBOL for use with `httpd-servlet*'."
@@ -917,7 +917,9 @@ process."
     (let ((etag (httpd-etag path)))
       (if (not (equal (cadr (assoc "If-None-Match" req)) etag))
           (let ((mime (httpd-get-mime (file-name-extension path)))
-                (mtime (httpd-date-string (nth 5 (file-attributes path)))))
+                (mtime (httpd-date-string
+                        (file-attribute-modification-time
+                         (file-attributes path)))))
             (httpd-log `(file ,path))
             (set-buffer-multibyte nil)
             (insert-file-contents-literally path)
