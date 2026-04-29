@@ -8,8 +8,9 @@ A simple Emacs web server.
 This used to be `httpd.el` but there are already several of these out
 there already of varying usefulness. Since the name change, it's been
 stripped down to simply serve files and directory listings. Client
-requests are sanitized so this *should* be safe, but I make no
-guarantees.
+requests are sanitized, but the server is vulnerable to denial of surface
+attacks, so it should only be used for local development or automation.
+We make no guarantees regarding security.
 
 This package is available on [MELPA](https://melpa.org/).
 
