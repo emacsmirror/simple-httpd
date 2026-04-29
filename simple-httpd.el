@@ -433,49 +433,63 @@ REQUEST is the request header alist."
                                 content-type)))
     (httpd-parse-args content)))
 
+(defun httpd--handle-request (proc request content)
+  "Handle REQUEST with CONTENT string.
+PROC is the client process."
+  (let* ((uri (cadar request))
+         (parsed-uri (httpd-parse-uri (concat uri)))
+         (uri-path (httpd-unhex (nth 0 parsed-uri)))
+         (uri-query (nconc (nth 1 parsed-uri)
+                           (httpd--parse-content-args request content)))
+         (servlet (httpd-get-servlet uri-path)))
+    (nconc request `(("Content" ,content)))
+    (httpd-log `(request
+                 (date ,(httpd-date-string))
+                 (address ,(car (process-contact proc)))
+                 (path ,uri-path)
+                 (query ,uri-query)
+                 (servlet ,servlet)
+                 (headers . ,request)))
+    (funcall servlet proc uri-path uri-query request)))
+
+(defun httpd--request-content (request)
+  "Return content of REQUEST as string if it is fully transmitted.
+Return nil if transmission is incomplete."
+  ;; "Transfer-Encoding: chunked" is not supported.
+  (if-let* ((len (cadr (assoc "Content-Length" request))))
+      (when (>= (buffer-size) (setq len (string-to-number len)))
+        ;; IDEA: Avoid allocating content string here. The servlet could
+        ;; access the :request-buffer itself, however the buffer can already
+        ;; contain a part of the next request.
+        (prog1 (buffer-substring (point-min) (setq len (+ (point-min) len)))
+          (delete-region (point-min) len)))
+    ""))
+
 (defun httpd--filter (proc chunk)
   "Process called each time client makes a request.
 PROC is the client process and CHUNK is part of the request as string."
   (with-current-buffer (process-get proc :request-buffer)
     (goto-char (point-max))
     (insert chunk)
-    (let ((request (process-get proc :request)))
-      (when (and (not request) (setq request (httpd-parse)))
-        (delete-region (point-min) (point))
-        (process-put proc :request request))
-      (when request
-        (let* ((buf-len (buffer-size))
-               (content-len (cadr (assoc "Content-Length" request)))
-               (content-len (if content-len
-                                (string-to-number content-len)
-                              buf-len)))
-          (when (>= buf-len content-len)
-            ;; IDEA: Avoid allocating content string here. The servlet
-            ;; could access the :request-buffer itself, however the
-            ;; buffer may already contain parts of the next request.
-            (let* ((content-end (+ (point-min) content-len))
-                   (content (buffer-substring (point-min) content-end))
-                   (uri (cadar request))
-                   (parsed-uri (httpd-parse-uri (concat uri)))
-                   (uri-path (httpd-unhex (nth 0 parsed-uri)))
-                   (uri-query (nconc (nth 1 parsed-uri)
-                                     (httpd--parse-content-args request content)))
-                   (servlet (httpd-get-servlet uri-path)))
-              (delete-region (point-min) content-end)
-              (process-put proc :request nil)
-              (nconc request `(("Content" ,content)))
-              (httpd-log `(request
-                           (date ,(httpd-date-string))
-                           (address ,(car (process-contact proc)))
-                           (path ,uri-path)
-                           (query ,uri-query)
-                           (servlet ,servlet)
-                           (headers . ,request)))
-              (condition-case error-case
-                  (funcall servlet proc uri-path uri-query request)
-                (error (httpd--error-safe proc 500 error-case)))
-              (when (httpd--connection-close-p request)
-                (process-send-eof proc)))))))))
+    (let ((continue t) (request nil))
+      (while continue
+        (setq request (process-get proc :request))
+        (when (and (not request) (setq request (httpd-parse)))
+          (process-put proc :request request)
+          (delete-region (point-min) (point)))
+        (if (not request)
+            (setq continue nil)
+          (condition-case err
+              (when-let* ((content (or (httpd--request-content request)
+                                       (setq continue nil))))
+                (process-put proc :request nil)
+                (httpd--handle-request proc request content)
+                (when (httpd--connection-close-p request)
+                  (process-send-eof proc)
+                  (setq continue nil)))
+            (error
+             (httpd--error-safe proc 500 err)
+             (setq continue nil))))))))
 
 (defsubst httpd--new-buffer (name)
   "Generate new buffer NAME without calling buffer hooks."
@@ -968,11 +982,14 @@ The INFO object is optionally inserted into page.  If PROC is t use the
                (alist-get status httpd-status-codes))))
     (httpd-send-header proc "text/html" status)))
 
-(defun httpd--error-safe (&rest args)
-  "Call `httpd-error' with ARGS and log failures to `httpd-log-buffer'."
-  (condition-case error-case
-      (apply #'httpd-error args)
-    (error (httpd-log `(hard-error ,error-case)))))
+(defun httpd--error-safe (proc status info)
+  "Call `httpd-error' with PROC, STATUS and INFO.
+Close connection to PROC and ensure that failures are logged."
+  (condition-case err
+      (progn
+        (httpd-error proc status info)
+        (process-send-eof proc))
+    (error (httpd-log `(hard-error ,err)))))
 
 ;; Old names. Not deprecated to avoid churn.
 (defalias 'defservlet #'httpd-servlet)
