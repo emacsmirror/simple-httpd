@@ -5,14 +5,14 @@
 
 A simple Emacs web server.
 
-This used to be `httpd.el` but there are already several of these out
-there already of varying usefulness. Since the name change, it's been
-stripped down to simply serve files and directory listings. Client
-requests are sanitized, but the server is vulnerable to denial of surface
-attacks, so it should only be used for local development or automation.
-We make no guarantees regarding security.
+This used to be `httpd.el` but there are already several of these out there
+already of varying usefulness. The server can serve files, directory
+listings and custom servlets. Client requests are sanitized, but the server
+is vulnerable to denial of surface attacks, so it should only be used for
+local development or automation. We make no guarantees regarding security.
 
-This package is available on [MELPA](https://melpa.org/).
+This package is available on [MELPA](https://melpa.org/) and
+[NonGNU ELPA](https://nongnu.elpa.org/).
 
 ## Usage
 
@@ -30,8 +30,9 @@ to `nil`.
 
 ## Servlets
 
-Servlets can be defined with `httpd-servlet`. This one creates at servlet
-at `/hello-world` that says hello.
+Servlets can be defined with `httpd-servlet`. They are enabled by default
+but can be disabled by setting `httpd-servlets` to `nil`. This one creates
+at servlet at `/hello-world` that says hello.
 
 ```emacs-lisp
 (httpd-servlet hello-world text/plain (path)
