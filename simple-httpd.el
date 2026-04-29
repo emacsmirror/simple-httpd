@@ -892,7 +892,9 @@ Extra headers can be sent by supplying them like keywords, i.e.
                     ("Content-Length" . ,(httpd--buffer-size))
                     ("Connection" . ,(if (httpd--connection-close-p request)
                                          "close" "keep-alive"))))
-         (header-list `(,(format "HTTP/1.1 %d %s\r\n" status status-str)
+         (header-list `(,(format "%s %d %s\r\n"
+                                 (or (caddar request) "HTTP/1.1")
+                                 status status-str)
                         ,@(cl-loop for (header . value) in headers collect
                                    (format "%s: %s\r\n" header value))
                         ,@(cl-loop for (header value) on header-keys by #'cddr collect
