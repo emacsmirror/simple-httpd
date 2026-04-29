@@ -444,6 +444,9 @@ PROC is the client process and CHUNK is part of the request as string."
         (setq continue nil
               request (process-get proc :request-pending))
         (when (and (not request) (setq request (httpd-parse)))
+          (process-put proc :request-queue
+                       (nconc (process-get proc :request-queue)
+                              (list request)))
           (process-put proc :request-pending request)
           (delete-region (point-min) (point)))
         (when request
@@ -451,12 +454,11 @@ PROC is the client process and CHUNK is part of the request as string."
               (condition-case err
                   (when-let* ((content (httpd--content-string len)))
                     (process-put proc :request-pending nil)
-                    (process-put proc :request request)
                     (httpd--handle-request proc request content)
                     (setq continue (not (process-get proc :closed))))
                 (error
                  (httpd--error-safe proc 500 err)))
-            (httpd--error-safe proc 400 "Invalid content length")))))))
+            (httpd--error-safe proc 411)))))))
 
 (defsubst httpd--new-buffer (name)
   "Generate new buffer NAME without calling buffer hooks."
@@ -844,8 +846,8 @@ Extra headers can be sent by supplying them like keywords, i.e.
     (error "Header already sent"))
   (setq httpd--header-sent t)
   (let* ((proc (httpd--resolve-proc proc))
-         (request (or (process-get proc :request)
-                      (error "No current request")))
+         (request (or (pop (process-get proc :request-queue))
+                      (error "Request queue is empty")))
          (status-str (alist-get status httpd-status-codes))
          (mime-str (httpd--stringify mime))
          (mime-str (if (and (string-prefix-p "text/" mime-str)
@@ -962,7 +964,7 @@ The INFO object is optionally inserted into page.  If PROC is t use the
                (alist-get status httpd-status-codes))))
     (httpd-send-header proc "text/html" status)))
 
-(defun httpd--error-safe (proc status info)
+(defun httpd--error-safe (proc status &optional info)
   "Call `httpd-error' with PROC, STATUS and INFO.
 Close connection to PROC and ensure that failures are logged."
   (condition-case err
