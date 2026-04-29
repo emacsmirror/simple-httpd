@@ -450,7 +450,9 @@ PROC is the client process and CHUNK is part of the request as string."
                    ;; should then access the :request-buffer itself.
                    (content (buffer-string))
                    (content-type (cadr (assoc "Content-Type" request))))
-              (when (equal content-type "application/x-www-form-urlencoded")
+              (when (and (stringp content-type)
+                         (string-prefix-p "application/x-www-form-urlencoded"
+                                          content-type))
                 (setq uri-query (nconc uri-query (httpd-parse-args content))))
               (erase-buffer)
               (process-put proc :request nil)
