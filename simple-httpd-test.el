@@ -64,14 +64,13 @@
   (should (equal (httpd-parse-uri "/foo/bar%20baz.html?q=test%26case&v=10#page10")
                  '("/foo/bar%20baz.html" (("q" "test&case") ("v" "10")) "page10"))))
 
-(ert-deftest httpd-send-header-test ()
-  "Test server header output."
+(defun httpd-send-header-test-helper (request &rest args)
   (with-temp-buffer
     (set-buffer-multibyte nil)
     (let ((out (current-buffer)))
       (with-temp-buffer
         (set-buffer-multibyte nil)
-        (httpd--flet ((process-get (_proc _prop) nil)
+        (httpd--flet ((process-get (_proc _prop) request)
                       (process-send-region (_proc start end)
                         (let ((send-buffer (current-buffer)))
                           (with-current-buffer out
@@ -80,14 +79,33 @@
                         (with-current-buffer out
                           (insert str))))
           (insert "content")
-          (httpd-send-header nil "text/html" 404 :Foo "bar"))))
-    (let ((h (httpd-parse)))
-      (should (equal (car h) '("HTTP/1.1" "404" "Not Found")))
-      (should (equal (cdr (assoc "Content-Type" h)) '("text/html; charset=utf-8")))
-      (should (equal (cdr (assoc "Content-Length" h)) '("7")))
-      (should (equal (cdr (assoc "Connection" h)) '("keep-alive")))
-      (should (equal (cdr (assoc "Server" h)) (list httpd-server-name)))
-      (should (equal (cdr (assoc "Foo" h)) '("bar"))))))
+          (apply #'httpd-send-header nil args))))
+    (httpd-parse)))
+
+(ert-deftest httpd-send-header-test ()
+  "Test server header output."
+  (let ((h (httpd-send-header-test-helper nil "text/html" 404 :Foo "bar")))
+    (should (equal (car h) '("HTTP/1.1" "404" "Not Found")))
+    (should (equal (cdr (assoc "Content-Type" h)) '("text/html; charset=utf-8")))
+    (should (equal (cdr (assoc "Content-Length" h)) '("7")))
+    (should (equal (cdr (assoc "Connection" h)) '("keep-alive")))
+    (should (equal (cdr (assoc "Server" h)) (list httpd-server-name)))
+    (should (equal (cdr (assoc "Foo" h)) '("bar"))))
+  (let ((h (httpd-send-header-test-helper '(("GET" "/" "HTTP/1.1")
+                                            ("Connection" "close"))
+                                          "text/plain" 403)))
+    (should (equal (car h) '("HTTP/1.1" "403" "Forbidden")))
+    (should (equal (cdr (assoc "Content-Type" h)) '("text/plain; charset=utf-8")))
+    (should (equal (cdr (assoc "Content-Length" h)) '("7")))
+    (should (equal (cdr (assoc "Connection" h)) '("close")))
+    (should (equal (cdr (assoc "Server" h)) (list httpd-server-name))))
+  (let ((h (httpd-send-header-test-helper '(("GET" "/" "HTTP/1.0"))
+                                          "text/plain" 401)))
+    (should (equal (car h) '("HTTP/1.0" "401" "Unauthorized")))
+    (should (equal (cdr (assoc "Content-Type" h)) '("text/plain; charset=utf-8")))
+    (should (equal (cdr (assoc "Content-Length" h)) '("7")))
+    (should (equal (cdr (assoc "Connection" h)) '("close")))
+    (should (equal (cdr (assoc "Server" h)) (list httpd-server-name)))))
 
 (ert-deftest httpd-get-servlet-test ()
   "Test servlet dispatch."
