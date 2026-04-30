@@ -958,11 +958,11 @@ The INFO object is optionally inserted into page.  If PROC is t use the
                    (when info
                      (insert "error: ")
                      (princ info)
-                     (insert "\n"))
+                     (insert ?\n))
                    (when httpd-show-backtrace-when-error
                      (insert "backtrace:\n")
                      (backtrace)
-                     (insert "\n"))
+                     (insert ?\n))
                    (httpd-escape-html-buffer)
                    (buffer-string)))
              "")))
@@ -970,7 +970,7 @@ The INFO object is optionally inserted into page.  If PROC is t use the
                (or (alist-get status httpd-html)
                    (alist-get t httpd-html))
                contents status
-               (alist-get status httpd-status-codes))))
+               (alist-get status httpd-status-codes)) ?\n))
     (httpd-send-header proc "text/html" status)))
 
 (defun httpd--error-safe (&rest args)
