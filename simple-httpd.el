@@ -565,8 +565,9 @@ Returns a process for future response.
       (let ((proc (httpd-discard-buffer)))
         (run-at-time 1 0
          (lambda ()
-           (httpd-with-buffer proc \"text/plain\"
-             (insert \"Slow response\"))))))"
+           (ignore-errors
+             (httpd-with-buffer proc \"text/plain\"
+               (insert \"Slow response\")))))))"
   (when (eq major-mode 'httpd-buffer) (setq httpd--header-sent t))
   httpd-current-proc)
 
