@@ -125,7 +125,7 @@
 
 (defcustom httpd-root "~/public_html"
   "Web server file root."
-  :type 'directory)
+  :type '(choice (const nil) directory))
 
 (defcustom httpd-serve-files t
   "Enable serving files from `httpd-root'."
@@ -158,7 +158,7 @@ Set to nil to disable logging."
 
 (defcustom httpd-server-name (format "simple-httpd (Emacs %s)" emacs-version)
   "String to use in the Server header."
-  :type 'string)
+  :type '(choice (const nil) string))
 
 (defvar httpd-mime-types
   '(("png"  . "image/png")
@@ -795,9 +795,8 @@ element is the fragment."
     (concat "./" (string-join (delete ".." (split-string path sep t)) "/"))))
 
 (defun httpd-gen-path (path &optional root)
-  "Generate secure path in ROOT from request PATH.
-ROOT defaults to `httpd-root'."
-  (let ((clean (expand-file-name (httpd-clean-path path) (or root httpd-root))))
+  "Generate secure path in ROOT from request PATH."
+  (let ((clean (expand-file-name (httpd-clean-path path) root)))
     (if (file-directory-p clean)
         (let* ((dir (file-name-as-directory clean))
                (indexes (mapcar (apply-partially #'concat dir) httpd-indexes))
@@ -870,11 +869,11 @@ Extra headers can be sent by supplying them like keywords, i.e.
                        (concat mime-str "; charset=utf-8")
                      mime-str))
          (close (httpd--connection-close-p request))
-         (headers `(("Server" . ,httpd-server-name)
-                    ("Date" . ,(httpd-date-string))
+         (headers `(("Date" . ,(httpd-date-string))
                     ("Content-Type" . ,mime-str)
                     ("Content-Length" . ,(httpd--buffer-size))
-                    ("Connection" . ,(if close "close" "keep-alive"))))
+                    ("Connection" . ,(if close "close" "keep-alive"))
+                    ,@(and httpd-server-name `(("Server" . ,httpd-server-name)))))
          (header-list `(,(format "%s %d %s\r\n" (caddar request) status status-str)
                         ,@(cl-loop for (header . value) in headers collect
                                    (format "%s: %s\r\n" header value))
