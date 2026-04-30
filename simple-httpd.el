@@ -455,14 +455,18 @@ PROC is the client process and CHUNK is part of the request as string."
             (httpd--push-request proc 411)))
          ((looking-at-p "[^\r\n]*[\r\n]")
           (httpd--push-request proc 400))))))
-  (when-let* (((not (process-get proc :request-active)))
-              (request (pop (process-get proc :request-queue))))
-    (httpd--handle-request proc request)))
+  (httpd--pop-request proc))
 
 (defun httpd--push-request (proc request)
-  "Push REQUEST to PROC queue."
+  "Push REQUEST to client PROC queue."
   (cl-callf (lambda (q) (nconc q (list request)))
       (process-get proc :request-queue)))
+
+(defun httpd--pop-request (proc)
+  "Pop request from client PROC queue and handle it."
+  (when-let* (((not (process-get proc :request-active)))
+              (request (pop (process-get proc :request-queue))))
+    (run-at-time 0 nil #'httpd--handle-request proc request)))
 
 (defsubst httpd--new-buffer (name)
   "Generate new buffer NAME without calling buffer hooks."
@@ -881,8 +885,7 @@ Extra headers can be sent by supplying them like keywords, i.e.
       (process-send-region proc (point-min) (point-max)))
     (if close
         (process-send-eof proc)
-      (when-let* ((request (pop (process-get proc :request-queue))))
-        (run-at-time 0 nil #'httpd--handle-request proc request)))))
+      (httpd--pop-request proc))))
 
 (defun httpd-redirect (proc path &optional code)
   "Redirect the client to PATH (default 301).
