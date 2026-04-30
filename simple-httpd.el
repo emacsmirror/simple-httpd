@@ -391,27 +391,21 @@ Logs are redirected to stdout.  To use, invoke Emacs like this:
 (defun httpd--handle-request (proc request)
   "Handle REQUEST from client PROC."
   (condition-case err
-      (if (fixnump request)
-          (progn
-            (process-put proc :request-active '(("GET" "/" "HTTP/1.1")
-                                                ("Connection" "close")))
-            (httpd-error proc request)
-            (delete-process proc))
-        (let* ((uri (cadar request))
-               (parsed-uri (httpd-parse-uri (concat uri)))
-               (uri-path (car parsed-uri))
-               (uri-query (nconc (cadr parsed-uri)
-                                 (httpd--parse-content-args request)))
-               (servlet (httpd-get-servlet uri-path)))
-          (httpd-log `(request
-                       (date ,(httpd-date-string))
-                       (address ,(car (process-contact proc)))
-                       (path ,uri-path)
-                       (query ,uri-query)
-                       (servlet ,servlet)
-                       (headers . ,request)))
-          (process-put proc :request-active request)
-          (funcall servlet proc uri-path uri-query request)))
+      (let* ((uri (cadar request))
+             (parsed-uri (httpd-parse-uri (concat uri)))
+             (uri-path (car parsed-uri))
+             (uri-query (nconc (cadr parsed-uri)
+                               (httpd--parse-content-args request)))
+             (servlet (httpd-get-servlet uri-path)))
+        (httpd-log `(request
+                     (date ,(httpd-date-string))
+                     (address ,(car (process-contact proc)))
+                     (path ,uri-path)
+                     (query ,uri-query)
+                     (servlet ,servlet)
+                     (headers . ,request)))
+        (process-put proc :request-active request)
+        (funcall servlet proc uri-path uri-query request))
     (error
      (httpd--error-safe proc 500 err))))
 
@@ -452,9 +446,11 @@ PROC is the client process and CHUNK is part of the request as string."
                 (process-put proc :request-pending nil)
                 (httpd--push-request proc (nconc request `(("Content" ,content))))
                 (setq continue t))
-            (httpd--push-request proc 411)))
+            (httpd--push-request proc `(("GET" "/error?status=411" "HTTP/1.1")
+                                        ("Connection" "close")))))
          ((looking-at-p "[^\r\n]*[\r\n]")
-          (httpd--push-request proc 400))))))
+          (httpd--push-request proc '(("GET" "/error?status=400" "HTTP/1.1")
+                                      ("Connection" "close"))))))))
   (httpd--pop-request proc))
 
 (defun httpd--push-request (proc request)
@@ -832,13 +828,19 @@ request header as alist."
      ((file-directory-p path) (httpd-send-directory proc path uri-path))
      (t                       (httpd-send-file      proc path request)))))
 
-(defun httpd/ (proc uri-path _query request)
+(defun httpd/ (proc uri-path query request)
   "Default root servlet which serves files when `httpd-serve-files' is t.
-PROC is the client process, URI-PATH the request path and REQUEST the
-request header as alist."
-  (if (and httpd-serve-files httpd-root)
-      (httpd-serve-root proc httpd-root uri-path request)
-    (httpd-error proc 403)))
+PROC is the client process, URI-PATH the request path, QUERY the query
+arguments and REQUEST the request header as alist."
+  (cond
+   ((equal uri-path "/error")
+    (let ((status (string-to-number (or (cadr (assoc "status" query)) ""))))
+      (unless (and (assq status httpd-status-codes) (>= status 400))
+        (setq status 400))
+      (httpd-error proc status)))
+   ((and httpd-serve-files httpd-root)
+    (httpd-serve-root proc httpd-root uri-path request))
+   ((httpd-error proc 403))))
 
 (defun httpd-get-mime (ext)
   "Fetch MIME type given the file extension EXT."
@@ -884,7 +886,7 @@ Extra headers can be sent by supplying them like keywords, i.e.
     (unless (or (= (point-min) (point-max)) (equal "HEAD" (caar request)))
       (process-send-region proc (point-min) (point-max)))
     (if close
-        (process-send-eof proc)
+        (delete-process proc)
       (httpd--pop-request proc))))
 
 (defun httpd-redirect (proc path &optional code)

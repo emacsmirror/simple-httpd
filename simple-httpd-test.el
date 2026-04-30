@@ -72,7 +72,7 @@
         (set-buffer-multibyte nil)
         (httpd--flet ((process-get (_proc _prop) request)
                       (process-put (_proc _prop _val))
-                      (process-send-eof (_proc))
+                      (delete-process (_proc))
                       (process-send-region (_proc start end)
                         (let ((send-buffer (current-buffer)))
                           (with-current-buffer out
